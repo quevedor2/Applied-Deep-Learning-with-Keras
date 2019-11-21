@@ -4,6 +4,9 @@
 
 ##get_ipython().magic('matplotlib inline')
 ##get_ipython().magic("config InlineBackend.figure_format = 'retina'")
+import os
+os.chdir("/cluster/home/quever/git/Applied-Deep-Learning-with-Keras/py")
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -234,85 +237,44 @@ print(X_train.shape, y_train.shape, X_test.shape, y_test.shape) # (10499, 20) (1
 
 ###################################
 #### Logistic Regression Model ####
-#lr_model = Sequential()
-#lr_model.add(Dense(1, input_shape=(X_train.shape[1],), activation='sigmoid'))
-#lr_model.compile(Adam(lr=0.01), 'binary_crossentropy', metrics=['accuracy'])
+M=Models(X_train)
+M.log_model()
 
-lr_model=log_model(X_train)
-
-lr_history = lr_model.fit(X_train, y_train, verbose=0, epochs=30)
+lr_history = M.model.fit(X_train, y_train, verbose=0, epochs=30)
 plot_loss_accuracy(lr_history)
 
 
-#
-
-# In[60]:
-
-y_pred = lr_model.predict_classes(X_test, verbose=0)
+## Performance metrics
+y_pred = M.model.predict_classes(X_test, verbose=0)
 print(classification_report(y_test, y_pred))
-plot_confusion_matrix(lr_model, X_test, y_test)
+plot_confusion_matrix(M.model, X_test, y_test)
 
 
-# In[53]:
-
-def get_model():
-    lr_model = Sequential()
-    lr_model.add(Dense(1, input_shape=(X_train.shape[1],), activation='sigmoid'))
-    lr_model.compile(Adam(lr=0.01), 'binary_crossentropy', metrics=['accuracy'])
-    return lr_model
-
+## Keras cross validation
 new_X, new_y = shuffle(X, y, random_state=0)
 model = KerasClassifier(build_fn=get_model, epochs=5, verbose=0)
 scores = cross_val_score(model, new_X, new_y, cv=5)
-print(scores)
 print("Accuracy: %0.2f%% (+/- %0.2f%%)" % (100*scores.mean(), 100*scores.std()*2))
 
 
-# In[ ]:
+##########################
+#### Deep Model (ANN) ####
+M = Models(X_train)
+M.ann_model()
 
-
-
-
-# In[ ]:
-
-
-
-
-# ## Deep Model
-
-# In[61]:
-
-deep_model = Sequential()
-deep_model.add(Dense(64, input_shape=(X_train.shape[1],), activation='tanh'))
-deep_model.add(Dense(16, activation='tanh'))
-deep_model.add(Dense(1, activation='sigmoid'))
-
-deep_model.compile(Adam(lr=0.01), 'binary_crossentropy', metrics=['accuracy'])
-
-deep_history = deep_model.fit(X_train, y_train, verbose=0, epochs=30)
+deep_history = M.model.fit(X_train, y_train, verbose=0, epochs=30)
 plot_loss_accuracy(deep_history)
 
 
-# In[70]:
-
+## Performance metrics
 plot_compare_histories([lr_history, deep_history], ['Logistic Reg', 'Deep ANN'])
-
-
-# In[67]:
-
-y_pred = deep_model.predict_classes(X_test, verbose=0)
+y_pred = M.model.predict_classes(X_test, verbose=0)
 print(classification_report(y_test, y_pred))
 plot_confusion_matrix(deep_model, X_test, y_test)
 
-
-# In[ ]:
-
-def get_model():
-    return deep_model
-
+## Keras cross validation
 model = KerasClassifier(build_fn=get_model, epochs=5, verbose=0)
 scores = cross_val_score(model, X, y, cv=5)
-print(scores)
 print("Accuracy: %0.2f%% (+/- %0.2f%%)" % (100*scores.mean(), 100*scores.std()*2))
 
 
