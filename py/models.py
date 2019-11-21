@@ -9,7 +9,7 @@ class Models:
         
         lr_model.compile(Adam(lr=0.01), 'binary_crossentropy', metrics=['accuracy'])
         self.model=lr_model
-        
+    
     def ann_model(self):
         deep_model = Sequential()
         deep_model.add(Dense(64, input_shape=(X.shape[1],), activation='tanh'))
