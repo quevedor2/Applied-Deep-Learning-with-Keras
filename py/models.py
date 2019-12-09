@@ -76,5 +76,30 @@ class RegressionModels:
         deep_model.compile('adam', 'mean_squared_error')
         self.model=deep_model
 
+class CNN:
+    def __init__(self, X, model=0):
+        self.X = X
+        self.model=model
+    
+    def CNN(self):
+        model = Sequential()
+        model.add(Conv2D(32, (3, 3), activation='relu', padding='same', name='conv_1',
+                         input_shape=(150, 150, 3)))
+        model.add(MaxPooling2D((2, 2), name='maxpool_1'))
+        model.add(Conv2D(64, (3, 3), activation='relu', padding='same', name='conv_2'))
+        model.add(MaxPooling2D((2, 2), name='maxpool_2'))
+        model.add(Conv2D(128, (3, 3), activation='relu', padding='same', name='conv_3'))
+        model.add(MaxPooling2D((2, 2), name='maxpool_3'))
+        model.add(Conv2D(128, (3, 3), activation='relu', padding='same', name='conv_4'))
+        model.add(MaxPooling2D((2, 2), name='maxpool_4'))
+        model.add(Flatten())
+        model.add(Dropout(0.5))
+        model.add(Dense(512, activation='relu', name='dense_1'))
+        model.add(Dense(256, activation='relu', name='dense_2'))
+        model.add(Dense(1, activation='sigmoid', name='output'))
+
+        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+        self.model=model
+
 def get_model():
     return M.model

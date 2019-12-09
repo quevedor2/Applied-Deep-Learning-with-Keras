@@ -1,15 +1,6 @@
-
-# coding: utf-8
-
-# # Table of Contents
-#  <p><div class="lev1 toc-item"><a href="#Utility-Functions" data-toc-modified-id="Utility-Functions-1"><span class="toc-item-num">1&nbsp;&nbsp;</span>Utility Functions</a></div><div class="lev1 toc-item"><a href="#Building-a-Convolutional-Neural-Network" data-toc-modified-id="Building-a-Convolutional-Neural-Network-2"><span class="toc-item-num">2&nbsp;&nbsp;</span>Building a Convolutional Neural Network</a></div><div class="lev2 toc-item"><a href="#Model-Definition" data-toc-modified-id="Model-Definition-21"><span class="toc-item-num">2.1&nbsp;&nbsp;</span>Model Definition</a></div><div class="lev2 toc-item"><a href="#Data-Generator" data-toc-modified-id="Data-Generator-22"><span class="toc-item-num">2.2&nbsp;&nbsp;</span>Data Generator</a></div><div class="lev2 toc-item"><a href="#Training" data-toc-modified-id="Training-23"><span class="toc-item-num">2.3&nbsp;&nbsp;</span>Training</a></div><div class="lev2 toc-item"><a href="#Data-Augmentation" data-toc-modified-id="Data-Augmentation-24"><span class="toc-item-num">2.4&nbsp;&nbsp;</span>Data Augmentation</a></div><div class="lev1 toc-item"><a href="#Visualizing-Feature-Maps" data-toc-modified-id="Visualizing-Feature-Maps-3"><span class="toc-item-num">3&nbsp;&nbsp;</span>Visualizing Feature Maps</a></div><div class="lev1 toc-item"><a href="#Dense-Layer-Visualization" data-toc-modified-id="Dense-Layer-Visualization-4"><span class="toc-item-num">4&nbsp;&nbsp;</span>Dense Layer Visualization</a></div><div class="lev1 toc-item"><a href="#Visualizing-Convnet-Filters" data-toc-modified-id="Visualizing-Convnet-Filters-5"><span class="toc-item-num">5&nbsp;&nbsp;</span>Visualizing Convnet Filters</a></div>
-
-# In[1]:
-
-get_ipython().magic('matplotlib inline')
-get_ipython().magic("config InlineBackend.figure_format = 'retina'")
+#################
+#### MODULES ####
 import matplotlib.pyplot as plt
-plt.style.use('ggplot')
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -17,103 +8,43 @@ import warnings
 import os
 import pickle
 
+from pathlib import Path
+
+
 warnings.filterwarnings('ignore')
 pd.options.display.float_format = '{:,.2f}'.format
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 200)
+pd.set_option('display.width', 250)
 
-from __future__ import print_function
-from keras.models import Model, Sequential, load_model
-from keras.layers import Dense, Input, Conv2D, MaxPooling2D, Flatten, Dropout
-from keras.datasets import mnist
-from keras.optimizers import Adam
-from keras.preprocessing import image
-from keras.applications import VGG16
-from keras.preprocessing.image import ImageDataGenerator
-from keras.callbacks import EarlyStopping
-from keras import backend as K
+from tensorflow.keras.layers import Dense, Input, Conv2D, MaxPooling2D, Flatten, Dropout
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing import image
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras import backend as K
+from tensorflow.keras import activations
 from vis.utils import utils
-from keras import activations
 from vis.visualization import visualize_activation, get_num_filters
 from vis.input_modifiers import Jitter
 
+os.chdir("/cluster/home/quever/git/Applied-Deep-Learning-with-Keras/py")
+from models import *
+from P2_utility_functions import *
 
+#################################
+#### Case Study - Regression ####
+# We will be using the house sales dataset from King County, WA on Kaggle: https://www.kaggle.com/harlfoxem/housesalesprediction
+# The data has around 21,000 rows with 20 features. The value we're tring to predict is a floating point number labeld as "price".
+
+############################################
+#### Data Visualization & Preprocessing ####
 # # Utility Functions
 
 # In[11]:
 
-def smooth_curve(points, factor=0.8):
-    smoothed = []
-    for point in points:
-        if smoothed:
-            previous = smoothed[-1]
-            smoothed.append(previous * factor + point * (1 - factor))
-        else:
-            smoothed.append(point)
-    return smoothed
-
-def plot_compare(history, steps=-1):
-    if steps < 0:
-        steps = len(history.history['acc'])
-    acc = smooth_curve(history.history['acc'][:steps])
-    val_acc = smooth_curve(history.history['val_acc'][:steps])
-    loss = smooth_curve(history.history['loss'][:steps])
-    val_loss = smooth_curve(history.history['val_loss'][:steps])
-    
-    plt.figure(figsize=(6, 4))
-    plt.plot(loss, c='#0c7cba', label='Train Loss')
-    plt.plot(val_loss, c='#0f9d58', label='Val Loss')
-    plt.xticks(range(0, len(loss), 5))
-    plt.xlim(0, len(loss))
-    plt.title('Train Loss: %.3f, Val Loss: %.3f' % (loss[-1], val_loss[-1]), fontsize=12)
-    plt.legend()
-    
-    plt.figure(figsize=(6, 4))
-    plt.plot(acc, c='#0c7cba', label='Train Acc')
-    plt.plot(val_acc, c='#0f9d58', label='Val Acc')
-    plt.xticks(range(0, len(acc), 5))
-    plt.xlim(0, len(acc))
-    plt.title('Train Accuracy: %.3f, Val Accuracy: %.3f' % (acc[-1], val_acc[-1]), fontsize=12)
-    plt.legend()
-    
-def deprocess_image(x):
-    # normalize tensor: center on 0., ensure std is 0.1
-    x -= x.mean()
-    x /= (x.std() + 1e-5)
-    x *= 0.1
-
-    # clip to [0, 1]
-    x += 0.5
-    x = np.clip(x, 0, 1)
-
-    # convert to RGB array
-    x *= 255
-    x = np.clip(x, 0, 255).astype('uint8')
-    return x
- 
-def save_history(history, fn):
-    with open(fn, 'wb') as fw:
-        pickle.dump(history.history, fw, protocol=2)
-
-def load_history(fn):
-    class Temp():
-        pass
-    history = Temp()
-    with open(fn, 'rb') as fr:
-        history.history = pickle.load(fr)
-    return history
-
-def jitter(img, amount=32):
-    ox, oy = np.random.randint(-amount, amount+1, 2)
-    return np.roll(np.roll(img, ox, -1), oy, -2), ox, oy
-
-def reverse_jitter(img, ox, oy):
-    return np.roll(np.roll(img, -ox, -1), -oy, -2)
-
-def plot_image(img):
-    plt.figure(figsize=(6, 6))
-    plt.imshow(img)
-    plt.axis('off')
 
 
 # # Building a Convolutional Neural Network
@@ -123,7 +54,7 @@ def plot_image(img):
 # In[3]:
 
 model = Sequential()
-model.add(Conv2D(32, (3, 3), activation='relu', padding='same', name='conv_1', 
+model.add(Conv2D(32, (3, 3), activation='relu', padding='same', name='conv_1',
                  input_shape=(150, 150, 3)))
 model.add(MaxPooling2D((2, 2), name='maxpool_1'))
 model.add(Conv2D(64, (3, 3), activation='relu', padding='same', name='conv_2'))
@@ -170,7 +101,7 @@ validation_generator = test_datagen.flow_from_directory(
 
 # In[8]:
 
-history = model.fit_generator(train_generator, steps_per_epoch=100, epochs=20, 
+history = model.fit_generator(train_generator, steps_per_epoch=100, epochs=20,
                               validation_data=validation_generator, validation_steps=50, verbose=1)
 
 
@@ -191,7 +122,7 @@ plot_compare(history)
 # In[13]:
 
 model_aug = Sequential()
-model_aug.add(Conv2D(32, (3, 3), activation='relu', padding='same', name='conv_1', 
+model_aug.add(Conv2D(32, (3, 3), activation='relu', padding='same', name='conv_1',
                  input_shape=(150, 150, 3)))
 model_aug.add(MaxPooling2D((2, 2), name='maxpool_1'))
 model_aug.add(Conv2D(64, (3, 3), activation='relu', padding='same', name='conv_2'))
@@ -239,7 +170,7 @@ validation_generator = test_datagen.flow_from_directory(
         class_mode='binary')
 
 # early_stop = EarlyStopping(monitor='val_loss', patience=6, verbose=1)
-history_aug = model_aug.fit_generator(train_generator, steps_per_epoch=100, epochs=60, 
+history_aug = model_aug.fit_generator(train_generator, steps_per_epoch=100, epochs=60,
                                       validation_data=validation_generator, validation_steps=50, verbose=0)
 
 
@@ -352,7 +283,7 @@ plt.show()
 # Build the VGG16 network with ImageNet weights
 model = VGG16(weights='imagenet', include_top=True)
 
-# Utility to search for layer index by name. 
+# Utility to search for layer index by name.
 # Alternatively we can specify this as -1 since it corresponds to the last layer.
 layer_idx = utils.find_layer_idx(model, 'predictions')
 
@@ -400,7 +331,7 @@ for line in codes.split('\n'):
         continue
     name, idx = line.rsplit(' ', 1)
     idx = int(idx)
-    img = visualize_activation(model, layer_idx, filter_indices=idx, 
+    img = visualize_activation(model, layer_idx, filter_indices=idx,
                                tv_weight=0., max_iter=300, input_modifiers=[Jitter(16)])
 
     initial.append(img)
@@ -429,8 +360,8 @@ max_filters = 40
 selected_indices = []
 vis_images = [[], [], [], [], []]
 i = 0
-selected_filters = [[0, 3, 11, 25, 26, 33, 42, 62], 
-    [8, 21, 23, 38, 39, 45, 50, 79], 
+selected_filters = [[0, 3, 11, 25, 26, 33, 42, 62],
+    [8, 21, 23, 38, 39, 45, 50, 79],
     [40, 48, 52, 54, 81, 107, 224, 226],
     [58, 79, 86, 216, 307, 426, 497, 509],
     [2, 7, 41, 84, 103, 306, 461, 487]]
@@ -447,12 +378,12 @@ for layer_name in ['block1_conv2', 'block2_conv2', 'block3_conv3', 'block4_conv3
 
     # Generate input image for each filter.
     for idx in filters:
-        img = visualize_activation(model, layer_idx, filter_indices=idx, tv_weight=0., 
-                                   input_modifiers=[Jitter(0.05)], max_iter=300) 
+        img = visualize_activation(model, layer_idx, filter_indices=idx, tv_weight=0.,
+                                   input_modifiers=[Jitter(0.05)], max_iter=300)
         vis_images[i].append(img)
 
     # Generate stitched image palette with 4 cols so we get 2 rows.
-    stitched = utils.stitch_images(vis_images[i], cols=4)    
+    stitched = utils.stitch_images(vis_images[i], cols=4)
     plt.figure(figsize=(20, 30))
     plt.title(layer_name)
     plt.axis('off')
@@ -470,12 +401,12 @@ for layer_name in ['block1_conv2', 'block2_conv2', 'block3_conv3', 'block4_conv3
 
     # Generate input image for each filter.
     for j, idx in enumerate(selected_indices[i]):
-        img = visualize_activation(model, layer_idx, filter_indices=idx, 
-                                   seed_input=vis_images[i][j], input_modifiers=[Jitter(0.05)]) 
-        img = utils.draw_text(img, 'Filter {}'.format(idx))  
+        img = visualize_activation(model, layer_idx, filter_indices=idx,
+                                   seed_input=vis_images[i][j], input_modifiers=[Jitter(0.05)])
+        img = utils.draw_text(img, 'Filter {}'.format(idx))
         new_vis_images[i].append(img)
 
-    stitched = utils.stitch_images(new_vis_images[i], cols=4)    
+    stitched = utils.stitch_images(new_vis_images[i], cols=4)
     plt.figure(figsize=(20, 30))
     plt.title(layer_name)
     plt.axis('off')
@@ -485,6 +416,3 @@ for layer_name in ['block1_conv2', 'block2_conv2', 'block3_conv3', 'block4_conv3
 
 
 # In[ ]:
-
-
-
