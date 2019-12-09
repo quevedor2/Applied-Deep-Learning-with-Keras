@@ -41,8 +41,8 @@ from P2_utility_functions import *
 
 
 
-
-# # Case Study - Binary Classification
+############################################
+#### Case Study - Binary Classification ####
 
 # We will be using the Human Resources Analytics dataset on Kaggle: https://www.kaggle.com/ludobenistant/hr-analytics
 # We're trying to predict whether an employee will leave based on various features such as number of projects they worked on, time spent at the company, last performance review, salary etc. The dataset has around 15,000 rows and 9 columns. The column we're trying to predict is called "left". It's a binary column with 0/1 values. The label 1 means that the employee has left.
@@ -100,7 +100,7 @@ print(X_train.shape, y_train.shape, X_test.shape, y_test.shape) # (10499, 20) (1
 
 ###################################
 #### Logistic Regression Model ####
-M=Models(X_train)
+M=BinaryModels(X_train)
 M.log_model()
 
 lr_history = M.model.fit(X_train, y_train, verbose=0, epochs=30)
@@ -122,7 +122,7 @@ print("Accuracy: %0.2f%% (+/- %0.2f%%)" % (100*scores.mean(), 100*scores.std()*2
 
 ##########################
 #### Deep Model (ANN) ####
-M = Models(X_train)
+M = BinaryModels(X_train)
 M.ann_model()
 
 deep_history = M.model.fit(X_train, y_train, verbose=0, epochs=30)
@@ -144,7 +144,7 @@ print("Accuracy: %0.2f%% (+/- %0.2f%%)" % (100*scores.mean(), 100*scores.std()*2
 ##################################
 #### Deep Model Visualization ####
 
-M = Models(X_train)
+M = BinaryModels(X_train)
 M.ann_vis_model()
 
 history = M.model.fit(X_train, y_train, verbose=0, epochs=10)
